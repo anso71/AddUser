@@ -40,6 +40,7 @@
     <Reference Include="ACT">
       <HintPath>..\..\..\..\Dll\Bin\ACT.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />

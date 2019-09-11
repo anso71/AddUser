@@ -7,12 +7,13 @@ using System.Data;
 using System.Data.OleDb;
 using System.Globalization;
 using System.IO;
+using  Microsoft.VisualBasic.FileIO;
 using Agresso.ServerExtension;
 using Agresso.Interface.CommonExtension;
 
 namespace halost.AddUserFromIDM
 {
-    [ServerProgram("ADDIDMUSER")] //Identification
+    [ServerProgram("ADDIDMUS")] //Identification
     public class Standalone : ServerProgramBase  
     {
         public override void Run()
@@ -21,40 +22,46 @@ namespace halost.AddUserFromIDM
             string path = ServerAPI.Current.Parameters["path"];
             string filename = ServerAPI.Current.Parameters["filename"];
             string client = ServerAPI.Current.Parameters["client"];
-            string stringisfirstRowHeader = ServerAPI.Current.Parameters["Startermednavn"];
-            bool isFirstRowHeader = false;
-            if (stringisfirstRowHeader.Equals("Ja"))
-                isFirstRowHeader = true;
+  
+            if (client == string.Empty)
+                Me.StopReport("Klient ikke fylt ut");
+            if (filename == string.Empty)
+                Me.StopReport("Filnavn ikke fylt ut");
+
+
+      
             DataTable users = new DataTable("Users");
-            users = GetDataTableFromCsv(path + "/" + filename, isFirstRowHeader);
+            users = GetDataTableFromCsv(path + "/" + filename);
             foreach(DataRow row in users.Rows)
             {
                 IStatement sqlAhsResource = CurrentContext.Database.CreateStatement();
-                sqlAhsResource.Append("select date_to, Name, first_name, municipal, surname from ahsresource where client = client and resource_id = @resource");
+                sqlAhsResource.Append("select date_to, Name, first_name, municipal, surname from ahsresources where client = @client and resource_id = @resource");
                 sqlAhsResource["client"] = row["company"];
                 sqlAhsResource["resource"] = row["workforceID"];
-                DataTable ahsresourceTable = new DataTable("ahsresoruce");
+ 
+                DataTable ahsresourceTable = new DataTable("ahsresource");
                 CurrentContext.Database.Read(sqlAhsResource, ahsresourceTable);
                 if (ahsresourceTable.Rows.Count > 0)
                 {
-                    if (!row["email"].Equals(""))
+                     
+                    if (!(row["email"]).Equals(""))
                     {
                         foreach (DataRow ahsrow in ahsresourceTable.Rows)
                         {
                             DataTable aaguser = new DataTable("aaguser");
                             IStatement sqlaaguser = CurrentContext.Database.CreateStatement();
-                            sqlaaguser.Append("select user_id from aaguser where client = @client and user_id = @user_id");
+                            sqlaaguser.Append("select user_id from aaguser where user_id = @username");
                             sqlaaguser["client"] = row["company"];
                             sqlaaguser["username"] = row["username"];
-                            string Name = "";
-                            CurrentContext.Database.ReadValue(sqlaaguser, ref Name);
-                            if (!Name.Equals(""))
+                            string user_id = "";
+
+                            if (CurrentContext.Database.ReadValue(sqlaaguser, ref user_id))
                             {
                                 Me.API.WriteLog("Bruker {0} finnes Oppdater?", row["username"]);
                                 // finner ut om bruker har epost.
                                 IStatement sqlagladdress = CurrentContext.Database.CreateStatement();
                                 string email = "";
-                                sqlagladdress.Append("Select e_mail where dim_value = @workforceId and attribute_id = 'C0' and client =  @client");
+                                sqlagladdress.Append("Select e_mail from agladdress where dim_value = @workforceId and attribute_id = 'C0' and client =  @client");
                                 sqlagladdress["workforceId"] = row["workforceId"];
                                 sqlagladdress["client"] = row["company"];
                                 CurrentContext.Database.ReadValue(sqlagladdress, ref email);
@@ -71,7 +78,7 @@ namespace halost.AddUserFromIDM
                                 }
                                 else
                                 {
-                                    if (!email.Equals(row["email"]))
+                                    if (!email.Equals(row["email"].ToString()))
                                         Me.API.WriteLog("Bruker {0} har epost {1} men har epost {2} i AD Gjelder client {3}", row["workforceId"], email, row["email"], row["company"]);
                                 }
 
@@ -82,17 +89,18 @@ namespace halost.AddUserFromIDM
                                 //Start på legge inn bruker
                                 IStatement sqlaguserIn = CurrentContext.Database.CreateStatement();
                                 sqlaguserIn.Append("insert into aaguser(alert_media, bflag, date_from, date_to, def_client, description, language, last_update, printer, priority_no, status, time_from, time_to, user_id, user_name, user_stamp)");
-                                sqlaguserIn.Append("values('M', '21', GETDATE(), CONVERT(datetime, '2099-12-31'), @client, @decription, 'NO', GETDATE(), 'DEFAULT', 0, 'N', 0, 0, @username, @username, 'ADDUSERIDM')");
+                                sqlaguserIn.Append(" values('M', '21', GETDATE(), @date_to, @client, @description, 'NO', GETDATE(), 'DEFAULT', 0, 'N', 0, 0, @username, @username, 'ADDUSERIDM')");
                                 sqlaguserIn["client"] = row["company"];
                                 sqlaguserIn["description"] = ahsrow["name"];
                                 sqlaguserIn["username"] = row["username"];
+                                sqlaguserIn["date_to"] = DateTime.Parse("Dec 31, 2099");
                                 //legge inn bruker
                                 CurrentContext.Database.Execute(sqlaguserIn);
 
                                 //bruker link start
                                 IStatement sqlacruserlinkIn = CurrentContext.Database.CreateStatement();
                                 sqlacruserlinkIn.Append("insert into acruserlink (attribute_id,bflag,client,dim_value,last_update,user_id, user_stamp )");
-                                sqlacruserlinkIn.Append("values('C0', 0, @client, @workforceid, GETDATE(), @username, 'ADDUSERIDM')");
+                                sqlacruserlinkIn.Append(" values('C0', 0, @client, @workforceid, GETDATE(), @username, 'ADDUSERIDM')");
                                 sqlacruserlinkIn["client"] = row["company"];
                                 sqlacruserlinkIn["workforceid"] = row["workforceId"];
                                 sqlacruserlinkIn["username"] = row["username"];
@@ -102,7 +110,7 @@ namespace halost.AddUserFromIDM
                                 //legge inn kobling til AD på bruker. Singel Sign On. Start
                                 IStatement sqlaagusersecIn = CurrentContext.Database.CreateStatement();
                                 sqlaagusersecIn.Append("insert into aagusersec(bflag, domain_info, last_update, user_id,user_stamp, variant)");
-                                sqlaagusersecIn.Append("values('0', 'Katalog/'+@username, getDate(), @username, 'ADDUSERIDM', '4')");
+                                sqlaagusersecIn.Append(" values('0', 'Katalog/'+@username, getDate(), @username, 'ADDUSERIDM', '4')");
                                 sqlaagusersecIn["username"] = row["username"];
                                 //legger inn kobling til AD
                                 CurrentContext.Database.Execute(sqlaagusersecIn);
@@ -110,10 +118,10 @@ namespace halost.AddUserFromIDM
                                 //legge til description for bruker i agldecription
                                 IStatement sqlagldescriptionIn = CurrentContext.Database.CreateStatement();
                                 sqlagldescriptionIn.Append("insert into  agldescription (description,dim_value,attribute_id,language,client )");
-                                sqlagldescriptionIn.Append("values(@name, @username, 'GN', 'NO', @client)");
+                                sqlagldescriptionIn.Append(" values(@name, @username, 'GN', 'NO', @client)");
                                 sqlagldescriptionIn["name"] = ahsrow["name"];
                                 sqlagldescriptionIn["username"] = row["username"];
-                                sqlagldescriptionIn["client"] = row["client"];
+                                sqlagldescriptionIn["client"] = row["company"];
                                 //legger inn decription 
                                 CurrentContext.Database.Execute(sqlagldescriptionIn);
                             }
@@ -140,26 +148,42 @@ namespace halost.AddUserFromIDM
             Me.API.WriteLog("Stopping  report {0}", Me.ReportName);
         }
 
-        static DataTable GetDataTableFromCsv(string path, bool isFirstRowHeader)
+        private static DataTable GetDataTableFromCsv(string csv_file_path)
         {
-            string header = isFirstRowHeader ? "Yes" : "No";
-
-            string pathOnly = Path.GetDirectoryName(path);
-            string fileName = Path.GetFileName(path);
-
-            string sql = @"SELECT * FROM [" + fileName + "]";
-
-            using (OleDbConnection connection = new OleDbConnection(
-                      @"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + pathOnly +
-                      ";Extended Properties=\"Text;HDR=" + header + "\""))
-            using (OleDbCommand command = new OleDbCommand(sql, connection))
-            using (OleDbDataAdapter adapter = new OleDbDataAdapter(command))
+            DataTable csvData = new DataTable();
+            try
             {
-                DataTable dataTable = new DataTable();
-                dataTable.Locale = CultureInfo.CurrentCulture;
-                adapter.Fill(dataTable);
-                return dataTable;
+                using (TextFieldParser csvReader = new TextFieldParser(csv_file_path))
+                {
+                    csvReader.SetDelimiters(new string[] { ";" });
+                    csvReader.HasFieldsEnclosedInQuotes = true;
+                    string[] colFields = csvReader.ReadFields();
+                    foreach (string column in colFields)
+                    {
+                        DataColumn datecolumn = new DataColumn(column);
+                        datecolumn.AllowDBNull = true;
+                        csvData.Columns.Add(datecolumn);
+                    }
+                    while (!csvReader.EndOfData)
+                    {
+                        string[] fieldData = csvReader.ReadFields();
+                        //Making empty value as null
+                        for (int i = 0; i < fieldData.Length; i++)
+                        {
+                            if (fieldData[i] == "")
+                            {
+                                fieldData[i] = null;
+                            }
+                        }
+                        csvData.Rows.Add(fieldData);
+                    }
+                }
             }
+            catch (Exception ex)
+            {
+            
+            }
+            return csvData;
         }
     }
    
