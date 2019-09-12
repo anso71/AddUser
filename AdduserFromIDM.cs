@@ -78,7 +78,7 @@ namespace halost.AddUserFromIDM
                                 {
                                     //legger inn email
                                     IStatement sqlagladdressIn = CurrentContext.Database.CreateStatement();
-                                    sqlagladdressIn.Append("update agladdress set e_mail = @e_mail where dim_value= @workforceId and client= @client and attribute = 'C0'");
+                                    sqlagladdressIn.Append("update agladdress set e_mail = @e_mail where dim_value= @workforceId and client= @client and attribute_id = 'C0'");
                                     sqlagladdressIn["e_mail"] = row["email"];
                                     sqlagladdressIn["workforceId"] = row["workforceId"];
                                     sqlagladdressIn["client"] = row["company"];
