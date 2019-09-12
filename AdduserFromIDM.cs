@@ -110,7 +110,7 @@ namespace halost.AddUserFromIDM
                                     sqlagladdressIn.Append(" values ('GN',@address_id, @client,'NO',@user_id,@email,getDate(),'ADDUSERIDM')");
                                     sqlagladdressIn["user_id"] = row["username"];
                                     sqlagladdressIn["email"] = row["email"];
-                                    sqlagladdressIn["client"] = row["company"];
+                                    sqlagladdressIn["client"] = "*";
                                     sqlagladdressIn["address_id"] = address_id;
 
                                     CurrentContext.Database.Execute(sqlagladdressIn);
@@ -236,7 +236,7 @@ namespace halost.AddUserFromIDM
                                     sqlagladdressIn.Append(" values ('GN',@address_id, @client,'NO',@user_id,@email,getDate(),'ADDUSERIDM')");
                                     sqlagladdressIn["user_id"] = row["username"];
                                     sqlagladdressIn["email"] = row["email"];
-                                    sqlagladdressIn["client"] = row["company"];
+                                    sqlagladdressIn["client"] = "*";
                                     sqlagladdressIn["address_id"] = address_id;
 
                                     CurrentContext.Database.Execute(sqlagladdressIn);
