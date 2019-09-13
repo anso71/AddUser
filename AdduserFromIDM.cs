@@ -44,7 +44,7 @@ namespace halost.AddUserFromIDM
                 }
 
                 IStatement sqlAhsResource = CurrentContext.Database.CreateStatement();
-                sqlAhsResource.Append("select date_to, Name, first_name, municipal, surname from ahsresources where client = @client and resource_id = @resource");
+                sqlAhsResource.Append("select date_to, Name, first_name, municipal, surname from ahsresources where client = @client and resource_id = @resource and date_to > getDate()");
                 sqlAhsResource["client"] = row["company"];
                 sqlAhsResource["resource"] = row["workforceID"];
  
