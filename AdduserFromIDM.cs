@@ -106,8 +106,8 @@ namespace halost.AddUserFromIDM
                                     CurrentContext.Database.ReadValue(sqlcounter, ref address_id);
 
                                     IStatement sqlagladdressIn = CurrentContext.Database.CreateStatement();
-                                    sqlagladdressIn.Append("insert into agladdress (attribute_id, address_id, client,country_code,dim_value,e_mail,last_update,user_id)");
-                                    sqlagladdressIn.Append(" values ('GN',@address_id, @client,'NO',@user_id,@email,getDate(),'ADDUSERIDM')");
+                                    sqlagladdressIn.Append("insert into agladdress (attribute_id,address_type, address_id, client,country_code,dim_value,e_mail,last_update,user_id)");
+                                    sqlagladdressIn.Append(" values ('GN','1',@address_id, @client,'NO',@user_id,@email,getDate(),'ADDUSERIDM')");
                                     sqlagladdressIn["user_id"] = row["username"];
                                     sqlagladdressIn["email"] = row["email"];
                                     sqlagladdressIn["client"] = "*";
@@ -177,7 +177,7 @@ namespace halost.AddUserFromIDM
                                             //legge inn kobling til AD på bruker. Singel Sign On. Start
                                             IStatement sqlaagusersecIn = CurrentContext.Database.CreateStatement();
                                             sqlaagusersecIn.Append("insert into aagusersec(bflag, domain_info, last_update, user_id,user_stamp, variant)");
-                                            sqlaagusersecIn.Append(" values('0', 'Katalog/'+@username, getDate(), @username, 'ADDUSERIDM', '4')");
+                                            sqlaagusersecIn.Append(" values('0', 'Katalog\\'+@username, getDate(), @username, 'ADDUSERIDM', '4')");
                                             sqlaagusersecIn["username"] = row["username"];
                                             //legger inn kobling til AD
                                             CurrentContext.Database.Execute(sqlaagusersecIn);
@@ -232,8 +232,8 @@ namespace halost.AddUserFromIDM
                                     CurrentContext.Database.ReadValue(sqlcounter2, ref address_id);
 
                                     IStatement sqlagladdressIn = CurrentContext.Database.CreateStatement();
-                                    sqlagladdressIn.Append("insert into agladdress (attribute_id, address_id, client,country_code,dim_value,e_mail,last_update,user_id)");
-                                    sqlagladdressIn.Append(" values ('GN',@address_id, @client,'NO',@user_id,@email,getDate(),'ADDUSERIDM')");
+                                    sqlagladdressIn.Append("insert into agladdress (attribute_id,address_type, address_id, client,country_code,dim_value,e_mail,last_update,user_id)");
+                                    sqlagladdressIn.Append(" values ('GN','1',@address_id, @client,'NO',@user_id,@email,getDate(),'ADDUSERIDM')");
                                     sqlagladdressIn["user_id"] = row["username"];
                                     sqlagladdressIn["email"] = row["email"];
                                     sqlagladdressIn["client"] = "*";
