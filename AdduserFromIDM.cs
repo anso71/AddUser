@@ -89,7 +89,7 @@ namespace halost.AddUserFromIDM
                                     //få tak i counter
                                     Int32 address_id = 0;
                                     IStatement sqlcounter = CurrentContext.Database.CreateStatement();
-                                    sqlcounter.Append("select counter from acrcounter where client = @client and column_name = 'ADDRESS_ID'");
+                                    sqlcounter.Append("select counter from acrcounter where client = 'H1' and column_name = 'ADDRESS_ID'");
                                     sqlcounter["client"] = row["company"];
                                     CurrentContext.Database.ReadValue(sqlcounter, ref address_id);
 
