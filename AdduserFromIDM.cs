@@ -33,7 +33,7 @@ namespace halost.AddUserFromIDM
             foreach(DataRow row in users.Rows)
             {
                 IStatement sqlacruserlinkStart = CurrentContext.Database.CreateStatement();
-                sqlacruserlinkStart.Append("select user_id from acruserlink where client =@client and dim_value = @resource and attribute_id = 'C0'");
+                sqlacruserlinkStart.Append("select a.user_id from acruserlink a, aaguser b where a.client =@client and a.dim_value = @resource and a.attribute_id = 'C0' and a.user_id = b.user_id and b.date_to > getDate() and b.status = 'N'");
                 sqlacruserlinkStart["client"] = row["company"];
                 sqlacruserlinkStart["resource"] = row["workforceId"];
                 string user_id1 = "";
@@ -59,7 +59,7 @@ namespace halost.AddUserFromIDM
                         {
                             DataTable aaguser = new DataTable("aaguser");
                             IStatement sqlaaguser = CurrentContext.Database.CreateStatement();
-                            sqlaaguser.Append("select user_id from aaguser where user_id = @username");
+                            sqlaaguser.Append("select user_id from aaguser where user_id = @username and date_to > getDate() and status =  'N'");
                             sqlaaguser["client"] = row["company"];
                             sqlaaguser["username"] = row["username"];
                             string user_id = "";
@@ -86,29 +86,8 @@ namespace halost.AddUserFromIDM
            
                                 if (!(CurrentContext.Database.ReadValue(sqlagladdressGN, ref emailGN)))
                                 {
-                                    //få tak i counter
-                                    Int32 address_id = 0;
-                                    IStatement sqlcounter = CurrentContext.Database.CreateStatement();
-                                    sqlcounter.Append("select counter from acrcounter where client = 'H1' and column_name = 'ADDRESS_ID'");
-                                    sqlcounter["client"] = row["company"];
-                                    CurrentContext.Database.ReadValue(sqlcounter, ref address_id);
-
-                                    IStatement sqlagladdressGNIn = CurrentContext.Database.CreateStatement();
-                                    sqlagladdressGNIn.Append("insert into agladdress (attribute_id,address_type, address_id, client,country_code,dim_value,e_mail,last_update,user_id)");
-                                    sqlagladdressGNIn.Append(" values ('GN','1',@address_id, @client,'NO',@user_id,@email,getDate(),'ADDUSERIDM')");
-                                    sqlagladdressGNIn["user_id"] = row["username"];
-                                    sqlagladdressGNIn["email"] = row["email"];
-                                    sqlagladdressGNIn["client"] = "*";
-                                    sqlagladdressGNIn["address_id"] = address_id;
-                                    CurrentContext.Database.Execute(sqlagladdressGNIn);
                                     Me.API.WriteLog("La til epost for bruker {0} med iden {1} for firma {2}", row["workforceId"], row["username"], row["company"]);
-
-                                    // oppdatere counter
-                                    IStatement sqlcounterIn = CurrentContext.Database.CreateStatement();
-                                    sqlcounterIn.Append("update acrcounter set counter = @address_id where client= @client and column_name = 'ADDRESS_ID'");
-                                    sqlcounterIn["address_id"] = address_id + 1;
-                                    sqlcounterIn["client"] = row["company"];
-                                    CurrentContext.Database.Execute(sqlcounterIn);
+                                    CreateNewAddress(row);
                                 }
                                 else
                                 {
@@ -132,110 +111,37 @@ namespace halost.AddUserFromIDM
                                 sqlacruserlink["client"] = row["company"];
                                 sqlacruserlink["resource"] = row["workforceId"];
                                 string user_id2 = "";
+                              
                                 if (CurrentContext.Database.ReadValue(sqlacruserlink, ref user_id2))
                                 {
-                                    Me.API.WriteLog("Bruker {0} har bruker ident {1} Sjekk om data fortsatt stemmer", row["username"], user_id2);
-
+                                    if (user_id2.ToLower() == row["username"].ToString().ToLower())
+                                    {
+                                        Me.API.WriteLog("Bruker {0} har bruker ident {1} Sjekk om data fortsatt stemmer", row["username"], user_id2);
+                                        //sjekk om det bare er å åpne brukerkontoen igjen.
+                                        Me.API.WriteLog("Åpner brukerkonto {0}", user_id2);
+                                        IStatement sqlaaguserIN = CurrentContext.Database.CreateStatement();
+                                        sqlaaguserIN.Append("update aaguser set status = 'N',date_to = @date_to where user_id = @username");
+                                        sqlaaguserIN["client"] = row["company"];
+                                        sqlaaguserIN["username"] = row["username"];
+                                        sqlaaguserIN["date_to"] = DateTime.Parse("Dec 31, 2099");
+                                        CurrentContext.Database.Execute(sqlaaguserIN);
+                                        IStatement sqlaagusersecUpdate = CurrentContext.Database.CreateStatement();
+                                        sqlaagusersecUpdate.Append("update aagusersec set domain_info = 'Katalog\\'+@username, last_update=getDate() where user_id = @username");
+                                        sqlaagusersecUpdate["username"] = row["username"];
+                                        CurrentContext.Database.Execute(sqlaagusersecUpdate);
+                                        Me.API.WriteLog("Åpnet brukerkonto {0}", row["username"]);
+                                    }
+                                    else
+                                    {
+                                        Me.API.WriteLog("Gammel bruker {0}. Lager ny {1}", user_id2, row["username"]);
+                                        LegginnBruker(row, ahsrow, standardrole);
+                                    }
+                                   
                                 }
                                 else
                                 {
                                     Me.API.WriteLog("Bruker {0} er ikke der. Legger bruker inn", row["username"]);
-                                            //Start på legge inn bruker
-                                            IStatement sqlaguserIn = CurrentContext.Database.CreateStatement();
-                                            sqlaguserIn.Append("insert into aaguser(alert_media, bflag, date_from, date_to, def_client, description, language, last_update, printer, priority_no, status, time_from, time_to, user_id, user_name, user_stamp)");
-                                            sqlaguserIn.Append(" values('M', '5', GETDATE(), @date_to, @client, @description, 'NO', GETDATE(), 'DEFAULT', 7, 'N', 0, 0, @username, @username, 'ADDUSERIDM')");
-                                            sqlaguserIn["client"] = row["company"];
-                                            sqlaguserIn["description"] = ahsrow["name"];
-                                            sqlaguserIn["username"] = row["username"];
-                                            sqlaguserIn["date_to"] = DateTime.Parse("Dec 31, 2099");
-                                            //legge inn bruker
-                                            CurrentContext.Database.Execute(sqlaguserIn);
-
-                                            //bruker link start
-                                            IStatement sqlacruserlinkIn = CurrentContext.Database.CreateStatement();
-                                            sqlacruserlinkIn.Append("insert into acruserlink (attribute_id,bflag,client,dim_value,last_update,user_id, user_stamp )");
-                                            sqlacruserlinkIn.Append(" values('C0', 0, @client, @workforceid, GETDATE(), @username, 'ADDUSERIDM')");
-                                            sqlacruserlinkIn["client"] = row["company"];
-                                            sqlacruserlinkIn["workforceid"] = row["workforceId"];
-                                            sqlacruserlinkIn["username"] = row["username"];
-                                            //legge inn link til bruker 
-                                            CurrentContext.Database.Execute(sqlacruserlinkIn);
-
-                                            //legge inn kobling til AD på bruker. Singel Sign On. Start
-                                            IStatement sqlaagusersecIn = CurrentContext.Database.CreateStatement();
-                                            sqlaagusersecIn.Append("insert into aagusersec(bflag, domain_info, last_update, user_id,user_stamp, variant)");
-                                            sqlaagusersecIn.Append(" values('0', 'Katalog\\'+@username, getDate(), @username, 'ADDUSERIDM', '4')");
-                                            sqlaagusersecIn["username"] = row["username"];
-                                            //legger inn kobling til AD
-                                            CurrentContext.Database.Execute(sqlaagusersecIn);
-
-                                    //clear description
-                                    IStatement sqlagldescriptiondel = CurrentContext.Database.CreateStatement();
-                                    sqlagldescriptiondel.Append("Delete from agldescription where dim_value = @username and attribute_id = 'GN' and language = 'NO' and client = @client");
-                                    sqlagldescriptiondel["client"] = row["company"];
-                                    sqlagldescriptiondel["username"] = row["username"];
-                                    CurrentContext.Database.Execute(sqlagldescriptiondel);
-
-                                            //legge til description for bruker i agldecription
-                                            IStatement sqlagldescriptionIn = CurrentContext.Database.CreateStatement();
-                                            sqlagldescriptionIn.Append("insert into  agldescription (description,dim_value,attribute_id,language,client )");
-                                            sqlagldescriptionIn.Append(" values(@name, @username, 'GN', 'NO', @client)");
-                                            sqlagldescriptionIn["name"] = ahsrow["name"];
-                                            sqlagldescriptionIn["username"] = row["username"];
-                                            sqlagldescriptionIn["client"] = row["company"];
-                                            //legger inn decription 
-                                            CurrentContext.Database.Execute(sqlagldescriptionIn);
-
-                                            //få tak i counter
-                                            Int32 sequence_ref = 0;
-                                            IStatement sqlcounter = CurrentContext.Database.CreateStatement();
-                                            sqlcounter.Append("select counter from acrcounter where client = @client and column_name = 'USER_DETAIL_ID'");
-                                            sqlcounter["client"] = row["company"];
-                                            CurrentContext.Database.ReadValue(sqlcounter, ref sequence_ref);
-
-                                            //legger inn role  i aaguserdetail
-                                            IStatement sqlaaguserdetailIn = CurrentContext.Database.CreateStatement();
-                                            sqlaaguserdetailIn.Append("insert into aaguserdetail (bflag, client, date_from,date_to, last_update, role_id, sequence_no, sequence_ref, status, user_id, user_stamp)");
-                                            sqlaaguserdetailIn.Append(" values('0', @client, getDate(),@date_to, getDate(), @role, '0', @sequence_ref, 'N', @user_id, 'ADDUSERIDM')");
-                                            sqlaaguserdetailIn["client"] = row["company"];
-                                            sqlaaguserdetailIn["date_to"] = DateTime.Parse("Dec 31, 2099");
-                                            sqlaaguserdetailIn["role"] = standardrole;
-                                            sqlaaguserdetailIn["user_id"] = row["username"];
-                                            sqlaaguserdetailIn["sequence_ref"] = sequence_ref;
-                                            CurrentContext.Database.Execute(sqlaaguserdetailIn);
-
-                                            // oppdatere counter
-                                            IStatement sqlcounterIn = CurrentContext.Database.CreateStatement();
-                                            sqlcounterIn.Append("update acrcounter set counter = @sequence_ref where client= @client and column_name = 'USER_DETAIL_ID'");
-                                            sqlcounterIn["sequence_ref"] = sequence_ref + 1;
-                                            sqlcounterIn["client"] = row["company"];
-                                            CurrentContext.Database.Execute(sqlcounterIn);
-
-                                    //få tak i counter
-                                    Int32 address_id = 0;
-                                    IStatement sqlcounter2 = CurrentContext.Database.CreateStatement();
-                                    sqlcounter2.Append("select counter from acrcounter where client = @client and column_name = 'ADDRESS_ID'");
-                                    sqlcounter2["client"] = row["company"];
-                                    CurrentContext.Database.ReadValue(sqlcounter2, ref address_id);
-
-                                    IStatement sqlagladdressIn = CurrentContext.Database.CreateStatement();
-                                    sqlagladdressIn.Append("insert into agladdress (attribute_id,address_type, address_id, client,country_code,dim_value,e_mail,last_update,user_id)");
-                                    sqlagladdressIn.Append(" values ('GN','1',@address_id, @client,'NO',@user_id,@email,getDate(),'ADDUSERIDM')");
-                                    sqlagladdressIn["user_id"] = row["username"];
-                                    sqlagladdressIn["email"] = row["email"];
-                                    sqlagladdressIn["client"] = "*";
-                                    sqlagladdressIn["address_id"] = address_id;
-
-                                    CurrentContext.Database.Execute(sqlagladdressIn);
-                             
-
-                                    // oppdatere counter
-                                    IStatement sqlcounter2In = CurrentContext.Database.CreateStatement();
-                                    sqlcounter2In.Append("update acrcounter set counter = @address_id where client= @client and column_name = 'ADDRESS_ID'");
-                                    sqlcounter2In["address_id"] = address_id + 1;
-                                    sqlcounter2In["client"] = row["company"];
-                                    CurrentContext.Database.Execute(sqlcounter2In);
-
+                                    LegginnBruker(row, ahsrow, standardrole);
                                 }
                             }
 
@@ -259,6 +165,119 @@ namespace halost.AddUserFromIDM
         public override void End()
         {
             Me.API.WriteLog("Stopping  report {0}", Me.ReportName);
+        }
+
+ 
+        private static void LegginnBruker(DataRow row, DataRow ahsrow, String standardrole)
+        {
+      
+            //Start på legge inn bruker
+            IStatement sqlaguserIn = CurrentContext.Database.CreateStatement();
+            sqlaguserIn.Append("insert into aaguser(alert_media, bflag, date_from, date_to, def_client, description, language, last_update, printer, priority_no, status, time_from, time_to, user_id, user_name, user_stamp)");
+            sqlaguserIn.Append(" values('M', '5', GETDATE(), @date_to, @client, @description, 'NO', GETDATE(), 'DEFAULT', 7, 'N', 0, 0, @username, @username, 'ADDUSERIDM')");
+            sqlaguserIn["client"] = row["company"];
+            sqlaguserIn["description"] = ahsrow["name"];
+            sqlaguserIn["username"] = row["username"];
+            sqlaguserIn["date_to"] = DateTime.Parse("Dec 31, 2099");
+            //legge inn bruker
+            CurrentContext.Database.Execute(sqlaguserIn);
+
+            //bruker link start
+            IStatement sqlacruserlinkIn = CurrentContext.Database.CreateStatement();
+            sqlacruserlinkIn.Append("insert into acruserlink (attribute_id,bflag,client,dim_value,last_update,user_id, user_stamp )");
+            sqlacruserlinkIn.Append(" values('C0', 0, @client, @workforceid, GETDATE(), @username, 'ADDUSERIDM')");
+            sqlacruserlinkIn["client"] = row["company"];
+            sqlacruserlinkIn["workforceid"] = row["workforceId"];
+            sqlacruserlinkIn["username"] = row["username"];
+            //legge inn link til bruker 
+            CurrentContext.Database.Execute(sqlacruserlinkIn);
+
+            //legge inn kobling til AD på bruker. Singel Sign On. Start
+            IStatement sqlaagusersecIn = CurrentContext.Database.CreateStatement();
+            sqlaagusersecIn.Append("insert into aagusersec(bflag, domain_info, last_update, user_id,user_stamp, variant)");
+            sqlaagusersecIn.Append(" values('0', 'Katalog\\'+@username, getDate(), @username, 'ADDUSERIDM', '4')");
+            sqlaagusersecIn["username"] = row["username"];
+            //legger inn kobling til AD
+            CurrentContext.Database.Execute(sqlaagusersecIn);
+
+            //clear description
+            IStatement sqlagldescriptiondel = CurrentContext.Database.CreateStatement();
+            sqlagldescriptiondel.Append("Delete from agldescription where dim_value = @username and attribute_id = 'GN' and language = 'NO' and client = @client");
+            sqlagldescriptiondel["client"] = row["company"];
+            sqlagldescriptiondel["username"] = row["username"];
+            CurrentContext.Database.Execute(sqlagldescriptiondel);
+
+            //legge til description for bruker i agldecription
+            IStatement sqlagldescriptionIn = CurrentContext.Database.CreateStatement();
+            sqlagldescriptionIn.Append("insert into  agldescription (description,dim_value,attribute_id,language,client )");
+            sqlagldescriptionIn.Append(" values(@name, @username, 'GN', 'NO', @client)");
+            sqlagldescriptionIn["name"] = ahsrow["name"];
+            sqlagldescriptionIn["username"] = row["username"];
+            sqlagldescriptionIn["client"] = row["company"];
+            //legger inn decription 
+            CurrentContext.Database.Execute(sqlagldescriptionIn);
+
+            //få tak i counter
+            CreateNewUserDetail(row, standardrole);
+
+            //få tak i counter
+            CreateNewAddress(row);
+
+
+        }
+        private static void CreateNewUserDetail(DataRow row, string standardrole)
+        {
+            Int32 sequence_ref = 0;
+            IStatement sqlcounter = CurrentContext.Database.CreateStatement();
+            sqlcounter.Append("select counter from acrcounter where client = @client and column_name = 'USER_DETAIL_ID'");
+            sqlcounter["client"] = row["company"];
+            CurrentContext.Database.ReadValue(sqlcounter, ref sequence_ref);
+
+            //legger inn role  i aaguserdetail
+            IStatement sqlaaguserdetailIn = CurrentContext.Database.CreateStatement();
+            sqlaaguserdetailIn.Append("insert into aaguserdetail (bflag, client, date_from,date_to, last_update, role_id, sequence_no, sequence_ref, status, user_id, user_stamp)");
+            sqlaaguserdetailIn.Append(" values('0', @client, getDate(),@date_to, getDate(), @role, '0', @sequence_ref, 'N', @user_id, 'ADDUSERIDM')");
+            sqlaaguserdetailIn["client"] = row["company"];
+            sqlaaguserdetailIn["date_to"] = DateTime.Parse("Dec 31, 2099");
+            sqlaaguserdetailIn["role"] = standardrole;
+            sqlaaguserdetailIn["user_id"] = row["username"];
+            sqlaaguserdetailIn["sequence_ref"] = sequence_ref;
+            CurrentContext.Database.Execute(sqlaaguserdetailIn);
+
+            // oppdatere counter
+            IStatement sqlcounterIn = CurrentContext.Database.CreateStatement();
+            sqlcounterIn.Append("update acrcounter set counter = @sequence_ref where client= @client and column_name = 'USER_DETAIL_ID'");
+            sqlcounterIn["sequence_ref"] = sequence_ref + 1;
+            sqlcounterIn["client"] = row["company"];
+            CurrentContext.Database.Execute(sqlcounterIn);
+        }
+
+        private static void CreateNewAddress(DataRow row)
+        {
+            //få tak i counter
+            Int32 address_id = 0;
+            IStatement sqlcounter = CurrentContext.Database.CreateStatement();
+            sqlcounter.Append("select counter from acrcounter where client =  'H1' and column_name = 'ADDRESS_ID'");
+            sqlcounter["client"] = row["company"];
+            CurrentContext.Database.ReadValue(sqlcounter, ref address_id);
+
+            IStatement sqlagladdressGNIn = CurrentContext.Database.CreateStatement();
+            sqlagladdressGNIn.Append("insert into agladdress (attribute_id,address_type, address_id, client,country_code,dim_value,e_mail,last_update,user_id)");
+            sqlagladdressGNIn.Append(" values ('GN','1',@address_id, @client,'NO',@user_id,@email,getDate(),'ADDUSERIDM')");
+            sqlagladdressGNIn["user_id"] = row["username"];
+            sqlagladdressGNIn["email"] = row["email"];
+            sqlagladdressGNIn["client"] = "*";
+            sqlagladdressGNIn["address_id"] = address_id;
+            CurrentContext.Database.Execute(sqlagladdressGNIn);
+
+
+            // oppdatere counter
+            IStatement sqlcounterIn = CurrentContext.Database.CreateStatement();
+            sqlcounterIn.Append("update acrcounter set counter = @address_id where client= 'H1' and column_name = 'ADDRESS_ID'");
+            sqlcounterIn["address_id"] = address_id + 1;
+            sqlcounterIn["client"] = row["company"];
+            CurrentContext.Database.Execute(sqlcounterIn);
+
         }
 
         private static DataTable GetDataTableFromCsv(string csv_file_path)
