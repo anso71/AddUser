@@ -1,0 +1,8 @@
+H:\prog\source\repos\AddUser\bin\Release\ACT.dll
+H:\prog\source\repos\AddUser\obj\Release\AddUser.csprojAssemblyReference.cache
+H:\prog\source\repos\AddUser\obj\Release\AddUser.csproj.CopyComplete
+H:\prog\source\repos\AddUser\bin\Release\HLS_AddUser.dll
+H:\prog\source\repos\AddUser\bin\Release\HLS_AddUser.pdb
+H:\prog\source\repos\AddUser\obj\Release\HLS_AddUser.dll
+H:\prog\source\repos\AddUser\obj\Release\HLS_AddUser.pdb
+H:\prog\source\repos\AddUser\obj\Release\AddUser.csproj.CoreCompileInputs.cache

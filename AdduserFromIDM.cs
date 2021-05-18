@@ -68,37 +68,66 @@ namespace halost.AddUserFromIDM
                             {
                                 //Me.API.WriteLog("Bruker {0} finnes Oppdater?", row["username"]);
                                 // finner ut om bruker har epost.
-                                
-                                //legger inn email
-                                IStatement sqlagladdressIn = CurrentContext.Database.CreateStatement();
-                                sqlagladdressIn.Append("update agladdress set e_mail = @e_mail where dim_value= @workforceId and client= @client and attribute_id = 'C0'");
-                                sqlagladdressIn["e_mail"] = row["email"];
-                                sqlagladdressIn["workforceId"] = row["workforceId"];
-                                sqlagladdressIn["client"] = row["company"];
-                                CurrentContext.Database.Execute(sqlagladdressIn);
-                                Me.API.WriteLog("La til epost for bruker {0} med iden {1} for firma {2}", row["workforceId"], row["username"], row["company"]);
-                                
-
-                                IStatement sqlagladdressGN = CurrentContext.Database.CreateStatement();
-                                string emailGN = "";
-                                sqlagladdressGN.Append("Select e_mail as emailGN from agladdress where dim_value = @username and attribute_id = 'GN'");
-                                sqlagladdressGN["username"] = row["username"];
-           
-                                if (!(CurrentContext.Database.ReadValue(sqlagladdressGN, ref emailGN)))
+                                if (row["email"].ToString().Contains("katalog.intern"))
                                 {
-                                    Me.API.WriteLog("La til epost for bruker {0} med iden {1} for firma {2}", row["workforceId"], row["username"], row["company"]);
-                                    CreateNewAddress(row);
+                                    Me.API.WriteLog("Bruker {0} har intern email oppdaterer ikke.", row["username"]);
                                 }
                                 else
                                 {
-                                    if (row["email"].ToString().ToLower() != emailGN.ToLower())
+                                    //legger inn email
+                                    IStatement sqlagladdressIn = CurrentContext.Database.CreateStatement();
+                                    if (!row["mobile"].ToString().Equals("") && row["mobile"] != null)
                                     {
-                                        IStatement sqlagladdressGNIn = CurrentContext.Database.CreateStatement();
-                                        sqlagladdressGNIn.Append("update agladdress set e_mail = @e_mail where dim_value= @username and attribute_id = 'GN'");
-                                        sqlagladdressGNIn["e_mail"] = row["email"];
-                                        sqlagladdressGNIn["username"] = row["username"];
-                                        CurrentContext.Database.Execute(sqlagladdressGNIn);
-                                        Me.API.WriteLog("Bruker {0} har epost {1} men har epost {2} i AD. Blitt oppdatert.", row["username"], emailGN, row["email"], row["company"]);
+                                        sqlagladdressIn.Append("update agladdress set e_mail = @e_mail,telephone_4 = @mobile  where dim_value= @workforceId and client= @client and attribute_id = 'C0'");
+                                        sqlagladdressIn["e_mail"] = row["email"];
+                                        sqlagladdressIn["workforceId"] = row["workforceId"];
+                                        sqlagladdressIn["client"] = row["company"];
+                                        sqlagladdressIn["mobile"] = row["mobile"];
+                                    }
+                                    else
+                                    {
+                                        sqlagladdressIn.Append("update agladdress set e_mail = @e_mail where dim_value= @workforceId and client= @client and attribute_id = 'C0'");
+                                        sqlagladdressIn["e_mail"] = row["email"];
+                                        sqlagladdressIn["workforceId"] = row["workforceId"];
+                                        sqlagladdressIn["client"] = row["company"];
+                                    }
+                                    CurrentContext.Database.Execute(sqlagladdressIn);
+                                    Me.API.WriteLog("La til epost for bruker {0} med iden {1} for firma {2}", row["workforceId"], row["username"], row["company"]);
+
+
+                                    IStatement sqlagladdressGN = CurrentContext.Database.CreateStatement();
+                                    string emailGN = "";
+                                    sqlagladdressGN.Append("Select e_mail as emailGN from agladdress where dim_value = @username and attribute_id = 'GN'");
+                                    sqlagladdressGN["username"] = row["username"];
+
+                                    if (!(CurrentContext.Database.ReadValue(sqlagladdressGN, ref emailGN)))
+                                    {
+                                        Me.API.WriteLog("La til epost for bruker {0} med iden {1} for firma {2}", row["workforceId"], row["username"], row["company"]);
+
+                                        CreateNewAddress(row);
+
+                                    }
+                                    else
+                                    {
+                                        if (row["email"].ToString().ToLower() != emailGN.ToLower())
+                                        {
+                                            IStatement sqlagladdressGNIn = CurrentContext.Database.CreateStatement();
+                                            if (!row["mobile"].ToString().Equals("") && row["mobile"]!=null)
+                                            {
+                                                sqlagladdressGNIn.Append("update agladdress set e_mail = @e_mail, telephone_4 = @mobile where dim_value= @username and attribute_id = 'GN'");
+                                                sqlagladdressGNIn["e_mail"] = row["email"];
+                                                sqlagladdressGNIn["username"] = row["username"];
+                                                sqlagladdressGNIn["mobile"] = row["mobile"];
+                                            }
+                                            else
+                                            {
+                                                sqlagladdressGNIn.Append("update agladdress set e_mail = @e_mail where dim_value= @username and attribute_id = 'GN'");
+                                                sqlagladdressGNIn["e_mail"] = row["email"];
+                                                sqlagladdressGNIn["username"] = row["username"];
+                                            }
+                                            CurrentContext.Database.Execute(sqlagladdressGNIn);
+                                            Me.API.WriteLog("Bruker {0} har epost {1} men har epost {2} i AD. Blitt oppdatert.", row["username"], emailGN, row["email"], row["company"]);
+                                        }
                                     }
                                 }
 
@@ -133,8 +162,15 @@ namespace halost.AddUserFromIDM
                                     }
                                     else
                                     {
-                                        Me.API.WriteLog("Gammel bruker {0}. Lager ny {1}", user_id2, row["username"]);
-                                        LegginnBruker(row, ahsrow, standardrole);
+                                        try
+                                        {
+                                            Me.API.WriteLog("Gammel bruker {0}. Lager ny {1}", user_id2, row["username"]);
+                                            LegginnBruker(row, ahsrow, standardrole);
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            Me.API.WriteLog(e.ToString());
+                                        }
                                     }
                                    
                                 }
@@ -255,6 +291,9 @@ namespace halost.AddUserFromIDM
         private static void CreateNewAddress(DataRow row)
         {
             //få tak i counter
+
+            
+
             Int32 address_id = 0;
             IStatement sqlcounter = CurrentContext.Database.CreateStatement();
             sqlcounter.Append("select counter from acrcounter where client =  'H1' and column_name = 'ADDRESS_ID'");
@@ -262,12 +301,18 @@ namespace halost.AddUserFromIDM
             CurrentContext.Database.ReadValue(sqlcounter, ref address_id);
 
             IStatement sqlagladdressGNIn = CurrentContext.Database.CreateStatement();
-            sqlagladdressGNIn.Append("insert into agladdress (attribute_id,address_type, address_id, client,country_code,dim_value,e_mail,last_update,user_id)");
-            sqlagladdressGNIn.Append(" values ('GN','1',@address_id, @client,'NO',@user_id,@email,getDate(),'ADDUSERIDM')");
+            sqlagladdressGNIn.Append("insert into agladdress (attribute_id,address_type, address_id, client,country_code,dim_value,e_mail,last_update,user_id, telephone_4)");
+            sqlagladdressGNIn.Append(" values ('GN','1',@address_id, @client,'NO',@user_id,@email,getDate(),'ADDUSERIDM',@mobile)");
             sqlagladdressGNIn["user_id"] = row["username"];
             sqlagladdressGNIn["email"] = row["email"];
             sqlagladdressGNIn["client"] = "*";
             sqlagladdressGNIn["address_id"] = address_id;
+            if (row["mobile"].ToString().Equals(""))
+            {
+                sqlagladdressGNIn["mobile"] = "";
+            }
+            else
+                sqlagladdressGNIn["mobile"] = row["mobile"];
             CurrentContext.Database.Execute(sqlagladdressGNIn);
 
 
