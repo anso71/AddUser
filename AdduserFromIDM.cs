@@ -76,13 +76,28 @@ namespace halost.AddUserFromIDM
                                 {
                                     //legger inn email
                                     IStatement sqlagladdressIn = CurrentContext.Database.CreateStatement();
-                                    if (!row["mobile"].ToString().Equals("") && row["mobile"] != null)
+                                    IStatement sqltelepc0 = CurrentContext.Database.CreateStatement();
+                                    sqltelepc0.Append("select telephone_4 from agladdress where attribute_id = 'C0' and client = @client and  dim_value = @workforceId");
+                                    sqltelepc0["client"] = row["company"];
+                                    sqltelepc0["workforceId"] = row["workforceId"];
+                                    string telephonec0 = "";
+                                    if (CurrentContext.Database.ReadValue(sqltelepc0, ref telephonec0))
                                     {
-                                        sqlagladdressIn.Append("update agladdress set e_mail = @e_mail,telephone_4 = @mobile  where dim_value= @workforceId and client= @client and attribute_id = 'C0'");
-                                        sqlagladdressIn["e_mail"] = row["email"];
-                                        sqlagladdressIn["workforceId"] = row["workforceId"];
-                                        sqlagladdressIn["client"] = row["company"];
-                                        sqlagladdressIn["mobile"] = row["mobile"];
+                                        if (!row["mobile"].ToString().Equals("") && row["mobile"] != null && telephonec0.ToString().Equals(""))
+                                        {
+                                            sqlagladdressIn.Append("update agladdress set e_mail = @e_mail,telephone_4 = @mobile  where dim_value= @workforceId and client= @client and attribute_id = 'C0'");
+                                            sqlagladdressIn["e_mail"] = row["email"];
+                                            sqlagladdressIn["workforceId"] = row["workforceId"];
+                                            sqlagladdressIn["client"] = row["company"];
+                                            sqlagladdressIn["mobile"] = row["mobile"];
+                                        }
+                                        else
+                                        {
+                                            sqlagladdressIn.Append("update agladdress set e_mail = @e_mail where dim_value= @workforceId and client= @client and attribute_id = 'C0'");
+                                            sqlagladdressIn["e_mail"] = row["email"];
+                                            sqlagladdressIn["workforceId"] = row["workforceId"];
+                                            sqlagladdressIn["client"] = row["company"];
+                                        }
                                     }
                                     else
                                     {
@@ -112,12 +127,25 @@ namespace halost.AddUserFromIDM
                                         if (row["email"].ToString().ToLower() != emailGN.ToLower())
                                         {
                                             IStatement sqlagladdressGNIn = CurrentContext.Database.CreateStatement();
-                                            if (!row["mobile"].ToString().Equals("") && row["mobile"]!=null)
+                                            IStatement sqltelepGN = CurrentContext.Database.CreateStatement();
+                                            sqltelepGN.Append("select telephone_4 from agladdress where attribute_id = 'GN' and client = @client and  dim_value = @username");
+                                            sqltelepGN["client"] = row["company"];
+                                            sqltelepGN["username"] = row["username"];
+                                            string telephoneGN = "";
+                                            if (CurrentContext.Database.ReadValue(sqltelepGN, ref telephoneGN))
                                             {
-                                                sqlagladdressGNIn.Append("update agladdress set e_mail = @e_mail, telephone_4 = @mobile where dim_value= @username and attribute_id = 'GN'");
-                                                sqlagladdressGNIn["e_mail"] = row["email"];
-                                                sqlagladdressGNIn["username"] = row["username"];
-                                                sqlagladdressGNIn["mobile"] = row["mobile"];
+                                                if (!row["mobile"].ToString().Equals("") && row["mobile"] != null && telephoneGN.ToString().Equals(""))
+                                                {
+                                                    sqlagladdressGNIn.Append("update agladdress set e_mail = @e_mail, telephone_4 = @mobile where dim_value= @username and attribute_id = 'GN'");
+                                                    sqlagladdressGNIn["e_mail"] = row["email"];
+                                                    sqlagladdressGNIn["username"] = row["username"];
+                                                    sqlagladdressGNIn["mobile"] = row["mobile"];
+                                                }
+                                                {
+                                                    sqlagladdressGNIn.Append("update agladdress set e_mail = @e_mail where dim_value= @username and attribute_id = 'GN'");
+                                                    sqlagladdressGNIn["e_mail"] = row["email"];
+                                                    sqlagladdressGNIn["username"] = row["username"];
+                                                }
                                             }
                                             else
                                             {
