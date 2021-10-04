@@ -22,6 +22,9 @@ namespace halost.AddUserFromIDM
             string path = ServerAPI.Current.Parameters["path"];
             string filename = ServerAPI.Current.Parameters["filename"];
             string standardrole = ServerAPI.Current.Parameters["role"];
+            string email = ServerAPI.Current.Parameters["email"];
+
+          
   
             if (filename == string.Empty)
                 Me.StopReport("Filnavn ikke fylt ut");
@@ -128,8 +131,7 @@ namespace halost.AddUserFromIDM
                                         {
                                             IStatement sqlagladdressGNIn = CurrentContext.Database.CreateStatement();
                                             IStatement sqltelepGN = CurrentContext.Database.CreateStatement();
-                                            sqltelepGN.Append("select telephone_4 from agladdress where attribute_id = 'GN' and client = @client and  dim_value = @username");
-                                            sqltelepGN["client"] = row["company"];
+                                            sqltelepGN.Append("select telephone_4 from agladdress where attribute_id = 'GN' and  dim_value = @username");
                                             sqltelepGN["username"] = row["username"];
                                             string telephoneGN = "";
                                             if (CurrentContext.Database.ReadValue(sqltelepGN, ref telephoneGN))
@@ -140,11 +142,6 @@ namespace halost.AddUserFromIDM
                                                     sqlagladdressGNIn["e_mail"] = row["email"];
                                                     sqlagladdressGNIn["username"] = row["username"];
                                                     sqlagladdressGNIn["mobile"] = row["mobile"];
-                                                }
-                                                {
-                                                    sqlagladdressGNIn.Append("update agladdress set e_mail = @e_mail where dim_value= @username and attribute_id = 'GN'");
-                                                    sqlagladdressGNIn["e_mail"] = row["email"];
-                                                    sqlagladdressGNIn["username"] = row["username"];
                                                 }
                                             }
                                             else
@@ -186,6 +183,26 @@ namespace halost.AddUserFromIDM
                                         sqlaagusersecUpdate.Append("update aagusersec set domain_info = 'Katalog\\'+@username, last_update=getDate() where user_id = @username");
                                         sqlaagusersecUpdate["username"] = row["username"];
                                         CurrentContext.Database.Execute(sqlaagusersecUpdate);
+                                        if (email == string.Empty)
+                                        {
+                                            Me.API.WriteLog("Epost ikke fylt ut");
+                                        }
+                                        else
+                                        {
+                                            try
+                                            {
+                                                StringBuilder _sb2 = new StringBuilder();
+                                                _sb2.Append(" Bruker :");
+                                                _sb2.Append(user_id2);
+                                                _sb2.Append(" har fått nytt domenenavn som er: ");
+                                                _sb2.Append(row["username"]);
+                                                Me.API.SendMail(_sb2.ToString(), "", "Varsel for domenenavn skifte", "Varsel for domenenavn skifte", email, "");
+                                            }
+                                            catch (IOException e)
+                                            {
+                                                Me.API.WriteLog("Epost ikke sent til grunnet exception :{0} {1}", email, e.Source);
+                                            }
+                                        }
                                         Me.API.WriteLog("Åpnet brukerkonto {0}", row["username"]);
                                     }
                                     else
