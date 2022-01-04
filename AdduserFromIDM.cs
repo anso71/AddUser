@@ -11,6 +11,7 @@ using  Microsoft.VisualBasic.FileIO;
 using Agresso.ServerExtension;
 using Agresso.Interface.CommonExtension;
 
+
 namespace halost.AddUserFromIDM
 {
     [ServerProgram("ADDIDMUS")] //Identification
@@ -66,6 +67,7 @@ namespace halost.AddUserFromIDM
                             sqlaaguser["client"] = row["company"];
                             sqlaaguser["username"] = row["username"];
                             string user_id = "";
+                            
 
                             if (CurrentContext.Database.ReadValue(sqlaaguser, ref user_id))
                             {
@@ -258,7 +260,7 @@ namespace halost.AddUserFromIDM
             sqlaguserIn.Append(" values('M', '5', GETDATE(), @date_to, @client, @description, 'NO', GETDATE(), 'DEFAULT', 7, 'N', 0, 0, @username, @username, 'ADDUSERIDM')");
             sqlaguserIn["client"] = row["company"];
             sqlaguserIn["description"] = ahsrow["name"];
-            sqlaguserIn["username"] = row["username"];
+            sqlaguserIn["username"] = row["username"].ToString().ToUpper();
             sqlaguserIn["date_to"] = DateTime.Parse("Dec 31, 2099");
             //legge inn bruker
             CurrentContext.Database.Execute(sqlaguserIn);
@@ -269,7 +271,7 @@ namespace halost.AddUserFromIDM
             sqlacruserlinkIn.Append(" values('C0', 0, @client, @workforceid, GETDATE(), @username, 'ADDUSERIDM')");
             sqlacruserlinkIn["client"] = row["company"];
             sqlacruserlinkIn["workforceid"] = row["workforceId"];
-            sqlacruserlinkIn["username"] = row["username"];
+            sqlacruserlinkIn["username"] = row["username"].ToString().ToUpper();
             //legge inn link til bruker 
             CurrentContext.Database.Execute(sqlacruserlinkIn);
 
@@ -277,7 +279,7 @@ namespace halost.AddUserFromIDM
             IStatement sqlaagusersecIn = CurrentContext.Database.CreateStatement();
             sqlaagusersecIn.Append("insert into aagusersec(bflag, domain_info, last_update, user_id,user_stamp, variant)");
             sqlaagusersecIn.Append(" values('0', 'Katalog\\'+@username, getDate(), @username, 'ADDUSERIDM', '4')");
-            sqlaagusersecIn["username"] = row["username"];
+            sqlaagusersecIn["username"] = row["username"].ToString().ToUpper();
             //legger inn kobling til AD
             CurrentContext.Database.Execute(sqlaagusersecIn);
 
@@ -285,7 +287,7 @@ namespace halost.AddUserFromIDM
             IStatement sqlagldescriptiondel = CurrentContext.Database.CreateStatement();
             sqlagldescriptiondel.Append("Delete from agldescription where dim_value = @username and attribute_id = 'GN' and language = 'NO' and client = @client");
             sqlagldescriptiondel["client"] = row["company"];
-            sqlagldescriptiondel["username"] = row["username"];
+            sqlagldescriptiondel["username"] = row["username"].ToString().ToUpper();
             CurrentContext.Database.Execute(sqlagldescriptiondel);
 
             //legge til description for bruker i agldecription
@@ -293,7 +295,7 @@ namespace halost.AddUserFromIDM
             sqlagldescriptionIn.Append("insert into  agldescription (description,dim_value,attribute_id,language,client )");
             sqlagldescriptionIn.Append(" values(@name, @username, 'GN', 'NO', @client)");
             sqlagldescriptionIn["name"] = ahsrow["name"];
-            sqlagldescriptionIn["username"] = row["username"];
+            sqlagldescriptionIn["username"] = row["username"].ToString().ToUpper();
             sqlagldescriptionIn["client"] = row["company"];
             //legger inn decription 
             CurrentContext.Database.Execute(sqlagldescriptionIn);
@@ -321,7 +323,7 @@ namespace halost.AddUserFromIDM
             sqlaaguserdetailIn["client"] = row["company"];
             sqlaaguserdetailIn["date_to"] = DateTime.Parse("Dec 31, 2099");
             sqlaaguserdetailIn["role"] = standardrole;
-            sqlaaguserdetailIn["user_id"] = row["username"];
+            sqlaaguserdetailIn["user_id"] = row["username"].ToString().ToUpper();
             sqlaaguserdetailIn["sequence_ref"] = sequence_ref;
             CurrentContext.Database.Execute(sqlaaguserdetailIn);
 
@@ -348,7 +350,7 @@ namespace halost.AddUserFromIDM
             IStatement sqlagladdressGNIn = CurrentContext.Database.CreateStatement();
             sqlagladdressGNIn.Append("insert into agladdress (attribute_id,address_type, address_id, client,country_code,dim_value,e_mail,last_update,user_id, telephone_4)");
             sqlagladdressGNIn.Append(" values ('GN','1',@address_id, @client,'NO',@user_id,@email,getDate(),'ADDUSERIDM',@mobile)");
-            sqlagladdressGNIn["user_id"] = row["username"];
+            sqlagladdressGNIn["user_id"] = row["username"].ToString().ToUpper();
             sqlagladdressGNIn["email"] = row["email"];
             sqlagladdressGNIn["client"] = "*";
             sqlagladdressGNIn["address_id"] = address_id;
