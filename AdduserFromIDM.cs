@@ -41,10 +41,32 @@ namespace halost.AddUserFromIDM
                 sqlacruserlinkStart["client"] = row["company"];
                 sqlacruserlinkStart["resource"] = row["workforceId"];
                 string user_id1 = "";
+                string new_id1 = "";
                 if (CurrentContext.Database.ReadValue(sqlacruserlinkStart, ref user_id1))
                 {
                     if (row["username"].ToString().ToLower() != user_id1.ToLower())
+                    {
+                        IStatement sqlaagusersecUpdate = CurrentContext.Database.CreateStatement();
+                        sqlaagusersecUpdate.Append("update aagusersec set domain_info = 'Katalog\\'+@username, last_update=getDate() where user_id = @Oldname and domain_info not like '%-%' and domain_info not like '' and domain_info not like 'Katalog\\H%'");
+                        sqlaagusersecUpdate["username"] = row["username"];
+                        sqlaagusersecUpdate["Oldname"] = user_id1;
+                        int number;
+                        number = CurrentContext.Database.Execute(sqlaagusersecUpdate);
+                        Me.API.WriteLog("Bruker {0} har fått nytt domene navn {1}", user_id1, row["username"]);
                         row["username"] = user_id1;
+                        
+                    }
+                    else
+                    {
+                        IStatement sqlaagusersecUpdate2 = CurrentContext.Database.CreateStatement();
+                        sqlaagusersecUpdate2.Append("update aagusersec set domain_info = 'Katalog\\'+@username, last_update=getDate() where user_id = @Oldname and domain_info not like '%-%' and domain_info not like '' and domain_info not like 'Katalog\\H%'");
+                        sqlaagusersecUpdate2["username"] = row["username"];
+                        sqlaagusersecUpdate2["Oldname"] = row["username"];
+                        int number;
+                        number = CurrentContext.Database.Execute(sqlaagusersecUpdate2);
+                        Me.API.WriteLog("Bruker {0} lagt inn bruker som  domene navn {1}", user_id1, row["username"]);
+                    }
+
                 }
 
                 IStatement sqlAhsResource = CurrentContext.Database.CreateStatement();
@@ -158,6 +180,7 @@ namespace halost.AddUserFromIDM
                                     }
                                 }
 
+
                             }
                             else
                             {
@@ -257,7 +280,7 @@ namespace halost.AddUserFromIDM
             //Start på legge inn bruker
             IStatement sqlaguserIn = CurrentContext.Database.CreateStatement();
             sqlaguserIn.Append("insert into aaguser(alert_media, bflag, date_from, date_to, def_client, description, language, last_update, printer, priority_no, status, time_from, time_to, user_id, user_name, user_stamp)");
-            sqlaguserIn.Append(" values('M', '5', GETDATE(), @date_to, @client, @description, 'NO', GETDATE(), 'DEFAULT', 7, 'N', 0, 0, @username, @username, 'ADDUSERIDM')");
+            sqlaguserIn.Append(" values('M', '5', GETDATE()-1, @date_to, @client, @description, 'NO', GETDATE(), 'DEFAULT', 7, 'N', 0, 0, @username, @username, 'ADDUSERIDM')");
             sqlaguserIn["client"] = row["company"];
             sqlaguserIn["description"] = ahsrow["name"];
             sqlaguserIn["username"] = row["username"].ToString().ToUpper();
@@ -319,8 +342,9 @@ namespace halost.AddUserFromIDM
             //legger inn role  i aaguserdetail
             IStatement sqlaaguserdetailIn = CurrentContext.Database.CreateStatement();
             sqlaaguserdetailIn.Append("insert into aaguserdetail (bflag, client, date_from,date_to, last_update, role_id, sequence_no, sequence_ref, status, user_id, user_stamp)");
-            sqlaaguserdetailIn.Append(" values('0', @client, getDate(),@date_to, getDate(), @role, '0', @sequence_ref, 'N', @user_id, 'ADDUSERIDM')");
+            sqlaaguserdetailIn.Append(" values('0', @client, @date_from,@date_to, getDate(), @role, '0', @sequence_ref, 'N', @user_id, 'ADDUSERIDM')");
             sqlaaguserdetailIn["client"] = row["company"];
+            sqlaaguserdetailIn["date_from"] = DateTime.Now.AddDays(-1);
             sqlaaguserdetailIn["date_to"] = DateTime.Parse("Dec 31, 2099");
             sqlaaguserdetailIn["role"] = standardrole;
             sqlaaguserdetailIn["user_id"] = row["username"].ToString().ToUpper();
